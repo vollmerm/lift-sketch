@@ -14,7 +14,6 @@ module Data.Skel.Interp where
 -- I'm using lists again.
 data Expr a where
   Lift      :: a -> Expr a
-  LiftArr   :: [a] -> Expr [a]
   Tuple     :: Expr a -> Expr b -> Expr (a, b)
   Lambda    :: (Expr a -> Expr b) -> Expr (a -> b)
   Apply     :: Expr (a -> b) -> Expr a -> Expr b
@@ -33,7 +32,6 @@ data Expr a where
 -- Simple interpreter.
 eval :: Expr a -> a
 eval (Lift v)           = v
-eval (LiftArr a)        = a
 eval (Tuple e1 e2)      = (eval e1, eval e2)
 eval (Lambda f)         = eval . f . Lift
 eval (Apply e1 e2)      = (eval e1) (eval e2)
@@ -65,7 +63,7 @@ eval (Mult e1 e2)   = (eval e1) * (eval e2)
 
 -- Example use.
 data1 :: Expr [Int]
-data1 = LiftArr [1,2,3,4]
+data1 = Lift [1,2,3,4]
 fun1 :: Expr (Int -> Int)
 fun1 = Lambda (\x -> Mult x x)
 prog1 :: Expr [Int]
