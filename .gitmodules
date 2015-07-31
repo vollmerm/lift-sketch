@@ -1,0 +1,6 @@
+[submodule "idris-patterns"]
+	path = idris-patterns
+	url = git@github.com:michel-steuwer/idris-patterns.git
+[submodule "skel-isabelle"]
+	path = skel-isabelle
+	url = git@github.com:vollmerm/skel-isabelle.git
