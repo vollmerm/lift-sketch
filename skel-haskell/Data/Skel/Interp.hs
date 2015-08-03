@@ -13,18 +13,33 @@ module Data.Skel.Interp where
 -- The AST.
 -- I'm using lists again.
 data Expr a where
+  
+  -- Boring stuff.
   Lift      :: a -> Expr a
   Tuple     :: Expr a -> Expr b -> Expr (a, b)
   Lambda    :: (Expr a -> Expr b) -> Expr (a -> b)
   Apply     :: Expr (a -> b) -> Expr a -> Expr b
+
+  -- Array/List operations (high-level)
   Map       :: Expr (a -> b) -> Expr [a] -> Expr [b]
   Zip       :: Expr [a] -> Expr [b] -> Expr [(a, b)]
-  Fold      :: Expr (a -> a -> a) -> Expr a -> Expr [a] -> Expr a
+  Reduce    :: Expr (a -> a -> a) -> Expr a -> Expr [a] -> Expr a
   Split     :: Expr Int -> Expr [a] -> Expr [[a]]
   Join      :: Expr [[a]] -> Expr [a]
   Iterate   :: Expr Int -> Expr ([a] -> [a]) -> Expr [a] -> Expr [a]
   Reorder   :: Expr [a] -> Expr [a]
   Transpose :: Expr [[a]] -> Expr [[a]]
+
+  -- Array/List operations (low-level)
+  MapWrkgp  :: Expr (a -> b) -> Expr [a] -> Expr [b]
+  MapLocal  :: Expr (a -> b) -> Expr [a] -> Expr [b]
+  MapGlobal :: Expr (a -> b) -> Expr [a] -> Expr [b]
+  MapSeq    :: Expr (a -> b) -> Expr [a] -> Expr [b]
+  MapVec    :: Expr (a -> b) -> Expr [a] -> Expr [b]
+  ReduceSeq :: Expr (a -> a -> a) -> Expr a -> Expr [a] -> Expr a
+  ReducePrt :: Expr (a -> a -> a) -> Expr a -> Expr [a] -> Expr a
+
+  -- Simple scalar expressions
   Plus      :: (Num a) => Expr a -> Expr a -> Expr a
   Minus     :: (Num a) => Expr a -> Expr a -> Expr a
   Mult      :: (Num a) => Expr a -> Expr a -> Expr a
@@ -37,7 +52,7 @@ eval (Lambda f)         = eval . f . Lift
 eval (Apply e1 e2)      = (eval e1) (eval e2)
 eval (Map e1 e2)        = map (eval e1) (eval e2)
 eval (Zip e1 e2)        = zip (eval e1) (eval e2)
-eval (Fold e1 e2 e3)    = foldr (eval e1) (eval e2) (eval e3)
+eval (Reduce e1 e2 e3)  = foldr (eval e1) (eval e2) (eval e3)
 eval (Split e1 e2)      =
   if length xs `mod` n == 0
   then split (length xs `div` n) xs
@@ -57,9 +72,18 @@ eval (Iterate e1 e2 e3) =
         compute n' a' = compute (n' - 1) (f a')
 eval (Reorder e)    = eval e
 eval (Transpose e)  = eval e
+eval (MapWrkgp e1 e2)  = map (eval e1) (eval e2)
+eval (MapLocal e1 e2)  = map (eval e1) (eval e2)
+eval (MapGlobal e1 e2) = map (eval e1) (eval e2)
+eval (MapSeq e1 e2)    = map (eval e1) (eval e2)
+eval (MapVec e1 e2)    = map (eval e1) (eval e2)
+eval (ReduceSeq e1 e2 e3)  = foldr (eval e1) (eval e2) (eval e3)
+eval (ReducePrt e1 e2 e3)  = foldr (eval e1) (eval e2) (eval e3)
+
 eval (Plus e1 e2)   = (eval e1) + (eval e2)
 eval (Minus e1 e2)  = (eval e1) - (eval e2)
 eval (Mult e1 e2)   = (eval e1) * (eval e2)
+
 
 -- Example use.
 data1 :: Expr [Int]
