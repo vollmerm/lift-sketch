@@ -12,6 +12,7 @@
 module Data.Skel.InterpSize where
 
 data Array a = Nil | Arr [a] Int
+               deriving (Show)
 
 -- The AST.
 
@@ -75,7 +76,7 @@ eval (Split e1 e2) =
 eval (Join e1) = Arr (concat xs') n'
   where (Arr xs _n) = eval e1
         xs' = map (\(Arr xs'' _n) -> xs'') xs
-        n' = undefined
+        n' = length xs'
 eval (Iterate e1 e2 e3) =
   if n >= 0 then compute n a
   else error "Invalid iteration count"
@@ -116,7 +117,17 @@ data1 :: Expr (Array Int)
 data1 = Lift (Arr [1,2,3,4] 4)
 fun1 :: Expr (Int -> Int)
 fun1 = Lambda (\x -> Mult x x)
+fun2 :: Expr (Array Int -> Array Int)
+fun2 = Lambda (\xs -> Map fun1 xs)
 prog1 :: Expr (Array Int)
 prog1 = Map fun1 data1
+prog2 :: Expr (Array (Array Int))
+prog2 = Split (Lift 2) prog1
+prog3 :: Expr (Array Int)
+prog3 = Join (Map fun2 prog2)
 prog1_result :: Array Int
-prog1_result = eval prog1
+prog1_result = eval prog1 -- => Arr [1,4,9,16] 4
+prog2_result :: Array (Array Int)
+prog2_result = eval prog2 -- => Arr [Arr [1,4] 2,Arr [9,16] 2] 2
+prog3_result :: Array Int
+prog3_result = eval prog3 -- => Arr [1,16,81,256] 2

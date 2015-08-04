@@ -90,7 +90,17 @@ data1 :: Expr [Int]
 data1 = Lift [1,2,3,4]
 fun1 :: Expr (Int -> Int)
 fun1 = Lambda (\x -> Mult x x)
+fun2 :: Expr ([Int] -> [Int])
+fun2 = Lambda (\xs -> Map fun1 xs)
 prog1 :: Expr [Int]
 prog1 = Map fun1 data1
+prog2 :: Expr [[Int]]
+prog2 = Split (Lift 2) prog1
+prog3 :: Expr [Int]
+prog3 = Join (Map fun2 prog2)
 prog1_result :: [Int]
-prog1_result = eval prog1
+prog1_result = eval prog1 -- => [1,4,9,16]
+prog2_result :: [[Int]]
+prog2_result = eval prog2 -- => [[1,4],[9,16]]
+prog3_result :: [Int]
+prog3_result = eval prog3 -- => [1,16,81,256]
