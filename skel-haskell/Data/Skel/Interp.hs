@@ -1,3 +1,4 @@
+
 {-# LANGUAGE GADTs #-}
 
 -- |
@@ -44,6 +45,12 @@ data Expr a where
   Minus     :: (Num a) => Expr a -> Expr a -> Expr a
   Mult      :: (Num a) => Expr a -> Expr a -> Expr a
 
+  -- Index expressions
+  IndexFun  :: (Expr [a] -> Expr Int -> Expr Int) -> Expr ([a] -> Int -> Int)
+  Length    :: Expr [b] -> Expr Int
+  Scatter   :: Expr ([b] -> Int -> Int) -> Expr [b] -> Expr [b]
+  Gather    :: Expr ([b] -> Int -> Int) -> Expr [b] -> Expr [b]
+
 -- Simple interpreter.
 eval :: Expr a -> a
 eval (Lift v)           = v
@@ -84,7 +91,18 @@ eval (Plus e1 e2)   = (eval e1) + (eval e2)
 eval (Minus e1 e2)  = (eval e1) - (eval e2)
 eval (Mult e1 e2)   = (eval e1) * (eval e2)
 
+eval (IndexFun f)   = (\a ix -> eval (f (Lift a) (Lift ix)))
+eval (Length e)     = length $ eval e
+eval (Scatter f e)  = map (e' !!) ixs
+  where e' = eval e
+        f' = eval f
+        ixs = map (f' e') $ take (length e') $ iterate (+1) 0
+eval (Gather f e)  = map (e' !!) ixs
+  where e' = eval e
+        f' = eval f
+        ixs = map (f' e') $ take (length e') $ iterate (+1) 0
 
+        
 -- Example use.
 data1 :: Expr [Int]
 data1 = Lift [1,2,3,4]
@@ -92,15 +110,21 @@ fun1 :: Expr (Int -> Int)
 fun1 = Lambda (\x -> Mult x x)
 fun2 :: Expr ([Int] -> [Int])
 fun2 = Lambda (\xs -> Map fun1 xs)
+fun3 :: Expr ([Int] -> Int -> Int)
+fun3 = IndexFun (\a ix -> (Minus (Minus (Length a) (Lift 1)) ix))
 prog1 :: Expr [Int]
 prog1 = Map fun1 data1
 prog2 :: Expr [[Int]]
 prog2 = Split (Lift 2) prog1
 prog3 :: Expr [Int]
 prog3 = Join (Map fun2 prog2)
+prog4 :: Expr [Int]
+prog4 = Gather fun3 prog3
 prog1_result :: [Int]
 prog1_result = eval prog1 -- => [1,4,9,16]
 prog2_result :: [[Int]]
 prog2_result = eval prog2 -- => [[1,4],[9,16]]
 prog3_result :: [Int]
 prog3_result = eval prog3 -- => [1,16,81,256]
+prog4_result :: [Int]
+prog4_result = eval prog4 -- => [256,81,16,1]
