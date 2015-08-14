@@ -46,10 +46,11 @@ data Expr a where
   Mult      :: (Num a) => Expr a -> Expr a -> Expr a
 
   -- Index expressions
-  IndexFun  :: (Expr [a] -> Expr Int -> Expr Int) -> Expr ([a] -> Int -> Int)
+  -- The index function needs a way to see the length of an array.
+  IndexFun  :: (Expr Int -> Expr Int) -> Expr (Int -> Int)
   Length    :: Expr [b] -> Expr Int
-  Scatter   :: Expr ([b] -> Int -> Int) -> Expr [b] -> Expr [b]
-  Gather    :: Expr ([b] -> Int -> Int) -> Expr [b] -> Expr [b]
+  Scatter   :: Expr (Int -> Int) -> Expr [b] -> Expr [b]
+  Gather    :: Expr (Int -> Int) -> Expr [b] -> Expr [b]
 
 -- Simple interpreter.
 eval :: Expr a -> a
@@ -91,16 +92,16 @@ eval (Plus e1 e2)   = (eval e1) + (eval e2)
 eval (Minus e1 e2)  = (eval e1) - (eval e2)
 eval (Mult e1 e2)   = (eval e1) * (eval e2)
 
-eval (IndexFun f)   = (\a ix -> eval (f (Lift a) (Lift ix)))
+eval (IndexFun f)   = eval . f . Lift
 eval (Length e)     = length $ eval e
 eval (Scatter f e)  = map (e' !!) ixs
   where e' = eval e
         f' = eval f
-        ixs = map (f' e') $ take (length e') $ iterate (+1) 0
+        ixs = map f' $ take (length e') $ iterate (+1) 0
 eval (Gather f e)  = map (e' !!) ixs
   where e' = eval e
         f' = eval f
-        ixs = map (f' e') $ take (length e') $ iterate (+1) 0
+        ixs = map f' $ take (length e') $ iterate (+1) 0
 
         
 -- Example use.
@@ -110,8 +111,8 @@ fun1 :: Expr (Int -> Int)
 fun1 = Lambda (\x -> Mult x x)
 fun2 :: Expr ([Int] -> [Int])
 fun2 = Lambda (\xs -> Map fun1 xs)
-fun3 :: Expr ([Int] -> Int -> Int)
-fun3 = IndexFun (\a ix -> (Minus (Minus (Length a) (Lift 1)) ix))
+fun3 :: Expr [b] -> Expr (Int -> Int)
+fun3 a = IndexFun (\ix -> (Minus (Minus (Length a) (Lift 1)) ix))
 prog1 :: Expr [Int]
 prog1 = Map fun1 data1
 prog2 :: Expr [[Int]]
@@ -119,7 +120,7 @@ prog2 = Split (Lift 2) prog1
 prog3 :: Expr [Int]
 prog3 = Join (Map fun2 prog2)
 prog4 :: Expr [Int]
-prog4 = Gather fun3 prog3
+prog4 = Gather (fun3 prog3) prog3
 prog1_result :: [Int]
 prog1_result = eval prog1 -- => [1,4,9,16]
 prog2_result :: [[Int]]
